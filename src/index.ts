@@ -15,6 +15,8 @@ import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath, pathToFileURL } from "url";
 
+import "./server.ts";
+
 dotenv.config();
 
 const token = process.env.DISCORD_TOKEN;
