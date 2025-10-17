@@ -16,7 +16,7 @@
   "dependencies": {
     "discord.js": "^14.23.2",
     "dotenv": "^17.2.3",
-    "express": "^4.19.2"
+    "express": "^5.1.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
