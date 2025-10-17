@@ -13,6 +13,7 @@ import {
 import * as fs from "fs";
 import * as path from "path";
 import * as dotenv from "dotenv";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
@@ -38,8 +39,12 @@ const client: BotClient = new Client({
 client.commands = new Collection();
 
 // Load commands dynamically
-const cmdsPath = path.join(process.cwd(), "src", "cmds");
-const commandFiles = fs.readdirSync(cmdsPath).filter(file => file.endsWith(".ts") || file.endsWith(".js"));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const cmdsPath = path.join(__dirname, "cmds");
+const commandFiles = fs.readdirSync(cmdsPath).filter(file => 
+  (file.endsWith(".ts") && !file.endsWith(".d.ts")) || (file.endsWith(".js") && !file.endsWith(".js.map"))
+);
 const commandsData = [];
 
 for (const file of commandFiles) {
