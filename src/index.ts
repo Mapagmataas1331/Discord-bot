@@ -13,7 +13,7 @@ import {
 import * as fs from "fs";
 import * as path from "path";
 import * as dotenv from "dotenv";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 
 dotenv.config();
 
@@ -49,7 +49,7 @@ const commandsData = [];
 
 for (const file of commandFiles) {
   const filePath = path.join(cmdsPath, file);
-  const command = (await import(`file://${filePath}`)).default;
+  const command = (await import(pathToFileURL(filePath).href)).default;
   if ("data" in command && "execute" in command) {
     client.commands.set(command.data.name, command);
     commandsData.push(command.data.toJSON());
