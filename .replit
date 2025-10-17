@@ -49,3 +49,7 @@ args = "pnpm add express dotenv discord.js"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm i"
+
+[[ports]]
+localPort = 3000
+externalPort = 80

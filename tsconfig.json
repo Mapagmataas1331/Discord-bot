@@ -19,7 +19,9 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "moduleDetection": "force",
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
