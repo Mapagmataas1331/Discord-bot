@@ -15,6 +15,8 @@ import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath, pathToFileURL } from "url";
 
+import "./server.js";
+
 dotenv.config();
 
 const token = process.env.DISCORD_TOKEN;
@@ -33,7 +35,11 @@ export interface BotClient extends Client {
 }
 
 const client: BotClient = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
 }) as BotClient;
 
 client.commands = new Collection();
@@ -42,9 +48,13 @@ client.commands = new Collection();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const cmdsPath = path.join(__dirname, "cmds");
-const commandFiles = fs.readdirSync(cmdsPath).filter(file => 
-  (file.endsWith(".ts") && !file.endsWith(".d.ts")) || (file.endsWith(".js") && !file.endsWith(".js.map"))
-);
+const commandFiles = fs
+  .readdirSync(cmdsPath)
+  .filter(
+    (file) =>
+      (file.endsWith(".ts") && !file.endsWith(".d.ts")) ||
+      (file.endsWith(".js") && !file.endsWith(".js.map")),
+  );
 const commandsData = [];
 
 for (const file of commandFiles) {
@@ -63,7 +73,9 @@ const rest = new REST({ version: "10" }).setToken(token);
 (async () => {
   try {
     console.log("🔁 Refreshing application commands...");
-    await rest.put(Routes.applicationCommands(clientId), { body: commandsData });
+    await rest.put(Routes.applicationCommands(clientId), {
+      body: commandsData,
+    });
     console.log("✅ Commands registered globally!");
   } catch (error) {
     console.error("❌ Failed to register commands:", error);
@@ -103,29 +115,45 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // Validate prefix and roleId
       if (prefix !== "getrole" || !roleId) {
-        return buttonInteraction.reply({ content: "❌ Invalid button ID.", flags: "Ephemeral" });
+        return buttonInteraction.reply({
+          content: "❌ Invalid button ID.",
+          flags: "Ephemeral",
+        });
       }
 
       // Ensure this is used in a guild
       if (!buttonInteraction.guild) {
-        return buttonInteraction.reply({ content: "❌ This button can only be used in a server.", flags: "Ephemeral" });
+        return buttonInteraction.reply({
+          content: "❌ This button can only be used in a server.",
+          flags: "Ephemeral",
+        });
       }
 
       // Get the role safely
       const role = buttonInteraction.guild.roles.cache.get(roleId);
       if (!role) {
-        return buttonInteraction.reply({ content: "❌ Role not found.", flags: "Ephemeral" });
+        return buttonInteraction.reply({
+          content: "❌ Role not found.",
+          flags: "Ephemeral",
+        });
       }
 
       // Ensure member has roles property
       if (!buttonInteraction.member || !("roles" in buttonInteraction.member)) {
-        return buttonInteraction.reply({ content: "❌ Cannot assign role.", flags: "Ephemeral" });
+        return buttonInteraction.reply({
+          content: "❌ Cannot assign role.",
+          flags: "Ephemeral",
+        });
       }
 
-      const memberRoles = buttonInteraction.member.roles as GuildMemberRoleManager;
+      const memberRoles = buttonInteraction.member
+        .roles as GuildMemberRoleManager;
       await memberRoles.add(role);
 
-      return buttonInteraction.reply({ content: `✅ You’ve been given the ${role.name} role!`, flags: "Ephemeral" });
+      return buttonInteraction.reply({
+        content: `✅ You’ve been given the ${role.name} role!`,
+        flags: "Ephemeral",
+      });
     }
 
     // -------- SLASH COMMANDS --------
@@ -134,19 +162,30 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const command = client.commands.get(chatInteraction.commandName);
 
     if (!command) {
-      return chatInteraction.reply({ content: "❌ Command not found.", flags: "Ephemeral" });
+      return chatInteraction.reply({
+        content: "❌ Command not found.",
+        flags: "Ephemeral",
+      });
     }
 
     await command.execute(chatInteraction, client);
-
   } catch (error) {
     console.error("❌ Error handling interaction:", error);
-    if ("isChatInputCommand" in interaction && interaction.isChatInputCommand()) {
+    if (
+      "isChatInputCommand" in interaction &&
+      interaction.isChatInputCommand()
+    ) {
       const chatInteraction = interaction as ChatInputCommandInteraction;
       if (chatInteraction.replied || chatInteraction.deferred) {
-        await chatInteraction.followUp({ content: "❌ There was an error executing this interaction.", flags: "Ephemeral" });
+        await chatInteraction.followUp({
+          content: "❌ There was an error executing this interaction.",
+          flags: "Ephemeral",
+        });
       } else {
-        await chatInteraction.reply({ content: "❌ There was an error executing this interaction.", flags: "Ephemeral" });
+        await chatInteraction.reply({
+          content: "❌ There was an error executing this interaction.",
+          flags: "Ephemeral",
+        });
       }
     }
   }

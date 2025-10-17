@@ -23,7 +23,29 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm start"
+args = "pnpm start"
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow]]
+name = "Build"
+mode = "sequential"
+author = 8578771
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm build"
+
+[[workflows.workflow]]
+name = "Install"
+mode = "sequential"
+author = 8578771
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm add express dotenv discord.js"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm i"
