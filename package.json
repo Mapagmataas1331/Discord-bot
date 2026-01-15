@@ -1,27 +1,27 @@
 {
-  "type": "module",
   "name": "dc-bot",
   "version": "1.0.0",
   "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "author": "Mapagmataas",
+  "type": "module",
   "main": "src/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js"
   },
-  "keywords": [],
-  "author": "Mapagmataas",
-  "license": "ISC",
-  "packageManager": "pnpm@10.18.3",
   "dependencies": {
-    "discord.js": "^14.23.2",
+    "discord.js": "^14.25.1",
     "dotenv": "^17.2.3",
-    "express": "^5.1.0"
+    "express": "^5.2.1"
   },
   "devDependencies": {
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.8.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.0.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
-  }
+  },
+  "packageManager": "pnpm@10.28.0"
 }
