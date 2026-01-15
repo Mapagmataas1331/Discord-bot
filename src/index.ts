@@ -42,6 +42,22 @@ const client: BotClient = new Client({
   ],
 }) as BotClient;
 
+process.on("unhandledRejection", (reason) => {
+  console.error("❌ Unhandled promise rejection:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught exception:", error);
+});
+
+client.on(Events.Error, (error) => {
+  console.error("❌ Discord client error:", error);
+});
+
+client.on(Events.Warn, (info) => {
+  console.warn("⚠️ Discord client warning:", info);
+});
+
 client.commands = new Collection();
 
 // Load commands dynamically
@@ -115,45 +131,55 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // Validate prefix and roleId
       if (prefix !== "getrole" || !roleId) {
-        return buttonInteraction.reply({
+        await buttonInteraction.reply({
           content: "❌ Invalid button ID.",
           flags: "Ephemeral",
         });
+
+        return;
       }
 
       // Ensure this is used in a guild
       if (!buttonInteraction.guild) {
-        return buttonInteraction.reply({
+        await buttonInteraction.reply({
           content: "❌ This button can only be used in a server.",
           flags: "Ephemeral",
         });
+
+        return;
       }
 
       // Get the role safely
       const role = buttonInteraction.guild.roles.cache.get(roleId);
       if (!role) {
-        return buttonInteraction.reply({
+        await buttonInteraction.reply({
           content: "❌ Role not found.",
           flags: "Ephemeral",
         });
+
+        return;
       }
 
       // Ensure member has roles property
       if (!buttonInteraction.member || !("roles" in buttonInteraction.member)) {
-        return buttonInteraction.reply({
+        await buttonInteraction.reply({
           content: "❌ Cannot assign role.",
           flags: "Ephemeral",
         });
+
+        return;
       }
 
       const memberRoles = buttonInteraction.member
         .roles as GuildMemberRoleManager;
-      await memberRoles.add(role);
 
-      return buttonInteraction.reply({
+      await buttonInteraction.deferReply({ ephemeral: true });
+      await memberRoles.add(role);
+      await buttonInteraction.editReply({
         content: `✅ You’ve been given the ${role.name} role!`,
-        flags: "Ephemeral",
       });
+
+      return;
     }
 
     // -------- SLASH COMMANDS --------
@@ -162,31 +188,35 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const command = client.commands.get(chatInteraction.commandName);
 
     if (!command) {
-      return chatInteraction.reply({
+      await chatInteraction.reply({
         content: "❌ Command not found.",
         flags: "Ephemeral",
       });
+
+      return;
     }
 
     await command.execute(chatInteraction, client);
   } catch (error) {
     console.error("❌ Error handling interaction:", error);
-    if (
-      "isChatInputCommand" in interaction &&
-      interaction.isChatInputCommand()
-    ) {
-      const chatInteraction = interaction as ChatInputCommandInteraction;
-      if (chatInteraction.replied || chatInteraction.deferred) {
-        await chatInteraction.followUp({
+
+    if (!interaction.isRepliable()) return;
+
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp({
           content: "❌ There was an error executing this interaction.",
           flags: "Ephemeral",
         });
       } else {
-        await chatInteraction.reply({
+        await interaction.reply({
           content: "❌ There was an error executing this interaction.",
           flags: "Ephemeral",
         });
       }
+    } catch (replyError) {
+      // If the interaction is already expired/acknowledged, don't crash the process.
+      console.error("⚠️ Failed to reply to interaction error:", replyError);
     }
   }
 });

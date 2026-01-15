@@ -21,10 +21,12 @@ export default {
   async execute(interaction: ChatInputCommandInteraction, client: BotClient) {
     const role = interaction.options.getRole("role");
     if (!role) {
-      return interaction.reply({
+      await interaction.reply({
         content: "❌ Role not found.",
         flags: "Ephemeral",
       });
+
+      return;
     }
 
     const button = new ButtonBuilder()

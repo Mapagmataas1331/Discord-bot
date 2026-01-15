@@ -9,10 +9,12 @@ export default {
   async execute(interaction: ChatInputCommandInteraction, client: BotClient) {
     // Check if command channel is set
     if (client.cmdChannelId && interaction.channelId !== client.cmdChannelId) {
-      return interaction.reply({
+      await interaction.reply({
         content: "❌ You can only use this command in the command channel.",
         flags: "Ephemeral",
       });
+
+      return;
     }
 
     await interaction.reply({ content: "🏓 Pinging..." });

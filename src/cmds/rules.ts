@@ -8,10 +8,12 @@ export default {
 
   async execute(interaction: ChatInputCommandInteraction, client: BotClient) {
     if (client.cmdChannelId && interaction.channelId !== client.cmdChannelId) {
-      return interaction.reply({
+      await interaction.reply({
         content: "❌ Use this command in the command channel.",
         flags: "Ephemeral",
       });
+
+      return;
     }
 
     const rulesEmbed = new EmbedBuilder()
