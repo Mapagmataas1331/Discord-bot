@@ -9,6 +9,7 @@ import {
   ChatInputCommandInteraction,
   ButtonInteraction,
   GuildMemberRoleManager,
+  MessageFlags,
 } from "discord.js";
 import * as fs from "fs";
 import * as path from "path";
@@ -173,7 +174,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const memberRoles = buttonInteraction.member
         .roles as GuildMemberRoleManager;
 
-      await buttonInteraction.deferReply({ ephemeral: true });
+      await buttonInteraction.deferReply({ flags: MessageFlags.Ephemeral });
       await memberRoles.add(role);
       await buttonInteraction.editReply({
         content: `✅ You’ve been given the ${role.name} role!`,

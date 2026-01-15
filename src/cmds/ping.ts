@@ -17,7 +17,8 @@ export default {
       return;
     }
 
-    await interaction.reply({ content: "🏓 Pinging..." });
+    // Always acknowledge quickly to avoid "Unknown interaction" (10062)
+    await interaction.deferReply();
     const sent = await interaction.fetchReply();
     const latency = (sent.createdTimestamp || 0) - interaction.createdTimestamp;
     await interaction.editReply(`🏓 Pong! Latency: ${latency}ms`);
