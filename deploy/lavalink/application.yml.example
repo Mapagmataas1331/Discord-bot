@@ -16,13 +16,19 @@ plugins:
     clients:
       - MUSIC
       - ANDROID_VR
+      - TV               # signed-in (OAuth) playback
       - WEB
       - WEBEMBEDDED
       - TVHTML5_SIMPLY
-    # If YouTube starts demanding sign-in from this server's IP, see setup notes (OAuth refresh token / poToken).
+    # Local yt-cipher (yt-cipher.service) for signature solving; password = API_TOKEN in /opt/yt-cipher/env.
+    # remoteCipher:
+    #   url: "http://127.0.0.1:8001"
+    #   password: "..."
+    # If YouTube starts demanding sign-in from this server's IP, see README (OAuth with a burner account).
     # oauth:
     #   enabled: true
     #   refreshToken: "..."
+    #   skipInitialization: true
   lavasrc:
     providers:
       - "ytsearch:\"%ISRC%\""
@@ -38,8 +44,9 @@ plugins:
 
 lavalink:
   plugins:
-    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
-      snapshot: false
+    # youtube-source master snapshot with the TV-client fix (issue #226); use a release > 1.18.2 once published.
+    - dependency: "dev.lavalink.youtube:youtube-plugin:2be8e542d3f6f178e048dca565892684c2e40177"
+      snapshot: true
     # LavaSrc: resolves Apple Music links/search and plays them via YouTube (works without API keys).
     # Spotify needs a client ID/secret (or sp_dc cookie) and is disabled here.
     - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.3"

@@ -12,7 +12,9 @@ The bot plays music through a local [Lavalink](https://github.com/lavalink-devs/
 | Java | system `java` (Ubuntu openjdk-25, shared with Minecraft) |
 
 Plugins:
-- `dev.lavalink.youtube:youtube-plugin` (replaces the deprecated built-in YouTube source). Clients: MUSIC, ANDROID_VR, TV, WEB, WEBEMBEDDED, TVHTML5_SIMPLY. OAuth is enabled (see below)
+- `dev.lavalink.youtube:youtube-plugin` (replaces the deprecated built-in YouTube source). Currently a **master snapshot**
+  (`2be8e542`, `snapshot: true`) because the TV-client fix (upstream issue #226) isn't in a release yet; switch back to a
+  release newer than 1.18.2 once one exists. Clients: MUSIC, ANDROID_VR, TV, WEB, WEBEMBEDDED, TVHTML5_SIMPLY. OAuth is enabled (see below)
 - `com.github.topi314.lavasrc:lavasrc-plugin`: Apple Music links and search, mirrored to YouTube. Spotify and Deezer stay disabled because they need API credentials
 
 Other sources: Vimeo, Twitch, Bandcamp and HTTP are enabled; local files are disabled. SoundCloud is enabled, but with Lavalink 4.2.2
@@ -35,7 +37,7 @@ Re-running it later only updates the jar and unit, and keeps the existing config
 systemctl status lavalink
 journalctl -u lavalink -f
 # REST check without printing the password:
-H=$(mktemp); printf 'Authorization: %s\n' "$(sudo awk '/^\s*password:/{gsub(/"/,"",$2);print $2;exit}' /opt/lavalink/application.yml)" > "$H"
+H=$(mktemp); printf 'Authorization: %s\n' "$(sudo awk '/^    password:/{gsub(/"/,"",$2);print $2;exit}' /opt/lavalink/application.yml)" > "$H"
 curl -s -H @"$H" http://127.0.0.1:2333/v4/info; rm -f "$H"
 ```
 
@@ -69,15 +71,26 @@ curl -s -H @"$H" "http://127.0.0.1:2333/v4/loadtracks?identifier=https://www.you
 curl -s -o /dev/null -w '%{http_code}\n' -H @"$H" "http://127.0.0.1:2333/youtube/stream/VIDEO_ID"
 ```
 
-Status (2026-10-18): OAuth works and age/sign-in restricted videos now **load** (`loadtracks` OK), but the stream test for
-some of them still fails (500/400) while normal videos stream fine. That points at signature deciphering for the WEB/TV
-clients. If real `/play` also fails for those videos, the next step is a remote cipher server.
+Status (2026-10-18): fixed. Sign-in-only videos (e.g. madk1d) failed with `TVHTML5: The page needs to be reloaded`
+and `Must find sig function`. Two changes fixed it: the youtube-plugin master snapshot (new TV User-Agent) and the local
+yt-cipher server below. `/youtube/stream/<id>` now returns audio for them (the `?withClient=TV` variant of that test route
+still answers 400, which is expected for that debug route; confirm with a real `/play`).
+
+## yt-cipher (remote signature solver)
+
+YouTube's player scripts change often and the plugin's built-in cipher breaks (`Must find sig function`). A local
+[yt-cipher](https://github.com/kikkia/yt-cipher) solves them instead:
+
+- Binary `/opt/yt-cipher/server` (single file built with `deno compile --target aarch64-unknown-linux-gnu` from the
+  yt-cipher repo + yt-dlp/ejs at the commit its Dockerfile pins; build it on another machine, not on the server).
+- Unit `yt-cipher.service` (this folder): user `ytcipher`, `127.0.0.1:8001` only, `MAX_THREADS=1`, `MemoryMax=384M`, `CPUQuota=50%`.
+- `/opt/yt-cipher/env` (root:ytcipher 640) holds `API_TOKEN`; the same value is `plugins.youtube.remoteCipher.password`
+  in `application.yml`, with `url: "http://127.0.0.1:8001"`.
+- Check: `systemctl status yt-cipher`, and Lavalink logs `Using remote cipher server with URL "http://127.0.0.1:8001"` on start.
 
 ## Other fallbacks
 
 1. **poToken + visitorData** (WEB/WEBEMBEDDED clients): generate them with iv-org's youtube-trusted-session-generator
    and set `plugins.youtube.pot.token` / `visitorData`.
-2. **Remote cipher server** (`plugins.youtube.remoteCipher`, e.g. a self-hosted yt-cipher on 127.0.0.1) if signature
-   deciphering breaks.
 
 Keep these values in `application.yml` on the server only, never in git.

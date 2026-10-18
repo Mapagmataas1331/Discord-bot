@@ -1,0 +1,26 @@
+[Unit]
+Description=yt-cipher (YouTube signature deciphering for Lavalink, localhost only)
+After=network-online.target
+Wants=network-online.target
+Before=lavalink.service
+
+[Service]
+User=ytcipher
+Group=ytcipher
+WorkingDirectory=/opt/yt-cipher
+EnvironmentFile=/opt/yt-cipher/env
+Environment=HOST=127.0.0.1 PORT=8001 MAX_THREADS=1 PREPROCESSED_CACHE_SIZE=20 XDG_CACHE_HOME=/opt/yt-cipher/cache
+ExecStart=/opt/yt-cipher/server
+Restart=on-failure
+RestartSec=5
+MemoryMax=384M
+CPUQuota=50%
+Nice=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/yt-cipher/cache
+
+[Install]
+WantedBy=multi-user.target
