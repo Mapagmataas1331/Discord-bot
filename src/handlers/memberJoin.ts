@@ -4,18 +4,20 @@ import { getSettings } from "../lib/settings.js";
 
 export const DEFAULT_WELCOME_MESSAGE = [
   "👋 **Welcome, {user}!** / **Привет, {user}!**",
-  "🇬🇧 Glad you're here on **{server}**, you're member #{memberCount}. Have a look at {rules}, then come say hi in the chat!",
-  "🇷🇺 Рады видеть тебя на **{server}**, ты у нас {memberCount}-й. Загляни в {rules} и заходи поздороваться в чат!",
+  "🇬🇧 Glad you're here on **{server}**, you're member #{memberCount}. Read {rules}, then press **✅ I agree** in {gate} to unlock the server.",
+  "🇷🇺 Рады видеть тебя на **{server}**, ты у нас {memberCount}-й. Прочитай {rules} и нажми **✅ Согласен** в {gate}, чтобы открыть сервер.",
 ].join("\n");
 
 export function renderWelcome(template: string, member: GuildMember): string {
   const rulesId = member.guild.rulesChannelId;
+  const gateId = getSettings(member.guild.id).gateChannelId;
   return template
     .replaceAll("{user}", `${member}`)
     .replaceAll("{username}", member.user.username)
     .replaceAll("{server}", member.guild.name)
     .replaceAll("{memberCount}", String(member.guild.memberCount))
-    .replaceAll("{rules}", rulesId ? `<#${rulesId}>` : "the rules / правила");
+    .replaceAll("{rules}", rulesId ? `<#${rulesId}>` : "the rules / правила")
+    .replaceAll("{gate}", gateId ? `<#${gateId}>` : rulesId ? `<#${rulesId}>` : "the rules channel / канал с правилами");
 }
 
 /** Auto-role + welcome message. Requires the privileged GuildMembers intent. */

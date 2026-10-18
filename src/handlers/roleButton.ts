@@ -1,10 +1,11 @@
 import { MessageFlags, type ButtonInteraction } from "discord.js";
-import { checkAssignableRole, toggleRole } from "../lib/roles.js";
+import { checkAssignableRole, grantRole, toggleRole } from "../lib/roles.js";
 
 /** Handles self-assign role buttons. Re-validates the role on every click. */
 export async function handleRoleButton(
   interaction: ButtonInteraction<"cached">,
   roleId: string,
+  mode: "toggle" | "grant" = "toggle",
 ): Promise<void> {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -19,6 +20,16 @@ export async function handleRoleButton(
   const problem = checkAssignableRole(role);
   if (problem) {
     await interaction.editReply(`❌ ${problem}`);
+    return;
+  }
+
+  if (mode === "grant") {
+    const granted = await grantRole(interaction.member, role);
+    await interaction.editReply(
+      granted === "added"
+        ? `✅ Welcome aboard! You now have **${role.name}** and can see the whole server.\n✅ Добро пожаловать! Теперь у тебя роль **${role.name}**, и весь сервер открыт.`
+        : `👌 You already have **${role.name}**. / У тебя уже есть роль **${role.name}**.`,
+    );
     return;
   }
 

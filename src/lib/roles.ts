@@ -60,3 +60,10 @@ export async function toggleRole(member: GuildMember, role: Role): Promise<"adde
   await member.roles.add(role, "Self-assign toggle");
   return "added";
 }
+
+/** Adds the role if the member lacks it; never removes it (rules gate). */
+export async function grantRole(member: GuildMember, role: Role): Promise<"added" | "already"> {
+  if (member.roles.cache.has(role.id)) return "already";
+  await member.roles.add(role, "Accepted the rules");
+  return "added";
+}

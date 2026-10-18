@@ -54,6 +54,10 @@ const migrations: readonly string[] = [
   `
   ALTER TABLE guild_settings ADD COLUMN dj_role_id TEXT;
   `,
+  // 4: rules gate (channel with the "I agree" button, linked from the welcome message)
+  `
+  ALTER TABLE guild_settings ADD COLUMN gate_channel_id TEXT;
+  `,
 ];
 
 function migrate(db: DatabaseSync): void {

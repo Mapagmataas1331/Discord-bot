@@ -133,6 +133,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const [prefix, roleId] = interaction.customId.split("_");
       if ((prefix === "getrole" || prefix === "rolemenu") && roleId) {
         await handleRoleButton(interaction, roleId);
+      } else if (prefix === "agree" && roleId) {
+        await handleRoleButton(interaction, roleId, "grant");
       }
       return;
     }
