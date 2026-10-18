@@ -1,8 +1,10 @@
 import type { Command } from "../types.js";
 import avatar from "./avatar.js";
 import getrole from "./getrole.js";
+import djrole from "./djrole.js";
 import help from "./help.js";
 import modlog from "./modlog.js";
+import { musicCommands } from "./music.js";
 import ping from "./ping.js";
 import poll from "./poll.js";
 import purge from "./purge.js";
@@ -17,6 +19,7 @@ import timeout from "./timeout.js";
 import userinfo from "./userinfo.js";
 import warn from "./warn.js";
 import warnings from "./warnings.js";
+import watch from "./watch.js";
 import welcome from "./welcome.js";
 
 /** Every slash command the bot knows. Add new commands here. */
@@ -25,12 +28,15 @@ export const commands: readonly Command[] = [
   help,
   ping,
   rules,
+  // music
+  ...musicCommands,
   // utility
   userinfo,
   serverinfo,
   avatar,
   poll,
   remind,
+  watch,
   // moderation
   timeout,
   purge,
@@ -41,6 +47,7 @@ export const commands: readonly Command[] = [
   setadminroles,
   setcmdchannel,
   modlog,
+  djrole,
   welcome,
   getrole,
   rolemenu,

@@ -1,9 +1,10 @@
 import type {
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
   RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from "discord.js";
 
-export type CommandCategory = "general" | "utility" | "moderation" | "admin";
+export type CommandCategory = "general" | "music" | "utility" | "moderation" | "admin";
 
 export interface Command {
   data: {
@@ -19,4 +20,6 @@ export interface Command {
   /** May be used outside the configured command channel. */
   anyChannel?: boolean;
   execute(interaction: ChatInputCommandInteraction<"cached">): Promise<void>;
+  /** Optional autocomplete handler for string options. */
+  autocomplete?(interaction: AutocompleteInteraction<"cached">): Promise<void>;
 }

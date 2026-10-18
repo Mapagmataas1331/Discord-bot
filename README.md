@@ -10,6 +10,8 @@ A community Discord bot built with **discord.js v14**, TypeScript and SQLite (No
   no managed roles, nothing at or above the bot's own role); every click toggles the role
 - Moderation: timeouts, purge, warnings with history, and a mod log channel
 - Welcome message and auto-role for new members
+- Music playback through a [Lavalink](https://lavalink.dev) v4 node: YouTube, Apple Music links, Vimeo, Twitch,
+  Bandcamp and direct audio links, with a queue, loop, shuffle, seek, volume, an optional DJ role and auto-leave
 - Native Discord polls and reminders that survive restarts
 - `/help` generated from the command registry and filtered to what you can use
 
@@ -43,13 +45,16 @@ Set `DEV_GUILD_ID` while developing: guild commands update instantly, while glob
 | `BOT_NICKNAME` | no | Nickname the bot sets for itself in every server on startup. Empty means no rename. |
 | `GUILD_MEMBERS_INTENT` | no | `true` (default) requests the privileged Server Members intent for welcome messages and auto-role. Set `false` if you don't enable it in the portal. |
 | `DB_PATH` | no | SQLite file path. Default `./data/bot.db`. On a server, point it at persistent storage. |
+| `LAVALINK_HOST` | no | Lavalink host (default `127.0.0.1`). |
+| `LAVALINK_PORT` | no | Lavalink port (default `2333`). |
+| `LAVALINK_PASSWORD` | for music | Lavalink password. If unset, music commands reply "music unavailable" and everything else keeps working. |
 
 ## Gateway intents
 
 | Intent | Privileged | Why |
 | --- | --- | --- |
 | `Guilds` | no | Servers, channels, roles, slash commands |
-| `GuildVoiceStates` | no | Reserved for upcoming music support |
+| `GuildVoiceStates` | no | Music: who is in which voice channel (join checks, auto-leave when alone) |
 | `GuildMembers` | **yes** | Member-join events for the welcome message and auto-role |
 
 Enable **Server Members Intent** under Developer Portal → your app → **Bot** → *Privileged Gateway Intents*.
@@ -65,7 +70,7 @@ Invite with the `bot` and `applications.commands` scopes and these permissions:
 - Manage Messages (`/purge`)
 - Moderate Members (`/timeout`)
 - Change Nickname (only if you use `BOT_NICKNAME`)
-- Connect and Speak (later, for music)
+- Connect and Speak (music)
 
 Example URL (replace `CLIENT_ID`):
 `https://discord.com/oauth2/authorize?client_id=CLIENT_ID&scope=bot+applications.commands&permissions=564049803832320`
@@ -79,12 +84,21 @@ Put the bot's role **above** every role it should hand out or time out (Server S
 - `/ping`: show bot latency
 - `/rules`: show the community rules (EN/RU)
 
+**Music** (you must be in the bot's voice channel; `/queue` and `/nowplaying` work from anywhere)
+- `/play <query|url> [next]`: search YouTube (with autocomplete) or play a link or playlist; `next` puts it at the front
+- `/pause`, `/resume`, `/skip [to]`, `/stop` (clear the queue and leave), `/leave`
+- `/queue [page]`, `/nowplaying` (progress bar)
+- `/volume <0-150>`, `/loop off|track|queue`, `/shuffle`, `/remove <position>`, `/seek <time>`
+- If a DJ role is set (`/djrole`), only DJs, Manage Server, or someone alone with the bot can pause, skip, stop or change things.
+- The bot leaves after 3 minutes alone in the channel or 3 minutes with an empty queue.
+
 **Utility**
 - `/userinfo [user]`: account and member details (moderators also see the warning count)
 - `/serverinfo`: server statistics
 - `/avatar [user] [global]`: full-size avatar
 - `/poll <question> <answers> [hours] [multiple]`: native Discord poll. Separate answers with `;`
 - `/remind me <in> <message>`, `/remind list`, `/remind cancel <id>`: reminders such as `10m`, `2h`, `1d12h`, kept across restarts
+- `/watch <url>`: share a video with a preview. Discord doesn't let bots stream video, so this links to it or to Watch Together
 
 **Moderation** (needs Discord permissions)
 - `/timeout <member> <duration|off> [reason]`: time out for up to 28 days, or remove a timeout (Timeout Members)
@@ -97,6 +111,7 @@ Put the bot's role **above** every role it should hand out or time out (Server S
 - `/setadminroles add|remove <role>`, `/setadminroles list`: choose which roles count as bot admins (Manage Server only)
 - `/setcmdchannel set <channel>`, `/setcmdchannel clear`: restrict member commands to one channel (admins and moderation commands are exempt)
 - `/modlog set <channel>`, `/modlog clear`: where moderation actions are logged
+- `/djrole set <role>`, `/djrole clear`: require a DJ role for music controls
 - `/welcome setup <channel> [message]`, `autorole <role>`, `disable`, `test`: welcome message and auto-role. Placeholders: `{user}`, `{username}`, `{server}`, `{memberCount}`
 - `/getrole <role>`: post a single "I agree" button that toggles a role
 - `/rolemenu <title> <role1> [style] [description] [role2..role10]`: post a self-assign menu with buttons or a dropdown
@@ -117,7 +132,8 @@ src/
   types.ts              Command interface
   cmds/                 one file per command + index.ts registry
   handlers/             buttons, select menus, member join
-  lib/                  db, settings, roles, permissions, warnings, reminders, mod log, durations
+  lib/                  db, settings, roles, permissions, warnings, reminders, mod log, durations, URL safety
+  music/                Lavalink client setup, voice/DJ checks, embeds
 ```
 
 ## Adding a command
@@ -134,5 +150,6 @@ Production runs on an Oracle Cloud Ubuntu 24.04 arm64 VM (Always Free A1) under 
 - Secrets: `/opt/discord-bot/app/.env` (mode 600, never committed)
 - Database: `/opt/discord-bot/data/bot.db` (`DB_PATH`)
 - Service: `discord-bot.service` (node 22, `Restart=always`, `MemoryMax=512M`, hardened)
+- Music: `lavalink.service` (Lavalink v4 on `127.0.0.1:2333`, `/opt/lavalink`). See [`deploy/lavalink/`](deploy/lavalink/README.md)
 - Auto-update: `discord-bot-update.timer` runs `/opt/discord-bot/update.sh` every 5 minutes. When `main` changes it pulls, installs, builds, re-registers commands if needed, and restarts the bot.
 - Logs: `journalctl -u discord-bot -f` (bot), `journalctl -u discord-bot-update` (updates)

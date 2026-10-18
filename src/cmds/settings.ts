@@ -29,6 +29,7 @@ const settings: Command = {
         },
         { name: "Welcome channel", value: channel(s.welcomeChannelId), inline: true },
         { name: "Auto-role", value: role(s.autoRoleId), inline: true },
+        { name: "DJ role", value: role(s.djRoleId), inline: true },
         { name: "Welcome message", value: (s.welcomeMessage ?? `${DEFAULT_WELCOME_MESSAGE} _(default)_`).slice(0, 1024) },
       );
     await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

@@ -18,5 +18,10 @@ export const config = {
   port: optional("PORT"),
   botNickname: optional("BOT_NICKNAME"),
   guildMembersIntent: flag("GUILD_MEMBERS_INTENT", true),
+  lavalink: {
+    host: optional("LAVALINK_HOST") ?? "127.0.0.1",
+    port: Number(optional("LAVALINK_PORT") ?? "2333"),
+    password: optional("LAVALINK_PASSWORD"),
+  },
   dbPath: optional("DB_PATH") ?? "./data/bot.db",
 };

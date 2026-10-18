@@ -16,6 +16,7 @@ import { isBotAdmin } from "./lib/permissions.js";
 import { startReminderScheduler } from "./lib/reminders.js";
 import { replyEphemeral } from "./lib/reply.js";
 import { getSettings } from "./lib/settings.js";
+import { setupMusic } from "./music/manager.js";
 import { startKeepAlive } from "./server.js";
 
 const { token } = config;
@@ -36,6 +37,7 @@ const intents = [
 if (config.guildMembersIntent) intents.push(GatewayIntentBits.GuildMembers);
 
 const client = new Client({ intents });
+setupMusic(client); // no-op (music commands reply "unavailable") when LAVALINK_PASSWORD is unset
 
 process.on("unhandledRejection", (reason) => {
   console.error("❌ Unhandled promise rejection:", reason);
@@ -132,6 +134,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if ((prefix === "getrole" || prefix === "rolemenu") && roleId) {
         await handleRoleButton(interaction, roleId);
       }
+      return;
+    }
+
+    if (interaction.isAutocomplete()) {
+      if (!interaction.inCachedGuild()) return;
+      const command = commandMap.get(interaction.commandName);
+      await command?.autocomplete?.(interaction);
       return;
     }
 

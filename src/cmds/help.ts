@@ -11,6 +11,7 @@ import type { Command, CommandCategory } from "../types.js";
 
 const CATEGORY_TITLES: Record<CommandCategory, string> = {
   general: "📌 General",
+  music: "🎵 Music",
   utility: "🧰 Utility",
   moderation: "🛡️ Moderation",
   admin: "⚙️ Admin",

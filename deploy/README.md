@@ -9,6 +9,7 @@ Files in this folder are installed on the server as follows (no secrets here; th
 | `discord-bot-update.timer` | `/etc/systemd/system/discord-bot-update.timer` |
 | `update.sh` | `/opt/discord-bot/update.sh` (owned by root, 755) |
 | `50-discord-bot-restart.rules` | `/etc/polkit-1/rules.d/50-discord-bot-restart.rules` |
+| `lavalink/` | Lavalink audio node for music. See [`lavalink/README.md`](lavalink/README.md) |
 
 ## First-time install (Ubuntu 24.04, arm64)
 

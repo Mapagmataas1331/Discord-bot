@@ -1,8 +1,8 @@
 [Unit]
 Description=Discord bot (dc-bot)
 Documentation=https://github.com/Mapagmataas1331/Discord-bot
-After=network-online.target
-Wants=network-online.target
+After=network-online.target lavalink.service
+Wants=network-online.target lavalink.service
 # Keep retrying forever (no start rate limit).
 StartLimitIntervalSec=0
 

@@ -1,0 +1,43 @@
+[Unit]
+Description=Lavalink audio node (for the Discord bot)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=lavalink
+Group=lavalink
+WorkingDirectory=/opt/lavalink
+# Uses the system Java (Ubuntu openjdk-25, shared with Minecraft).
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError --enable-native-access=ALL-UNNAMED -Djava.io.tmpdir=/opt/lavalink/tmp -jar /opt/lavalink/Lavalink.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+MemoryMax=1G
+UMask=0077
+
+# Hardening (no MemoryDenyWriteExecute: the JVM JIT needs it)
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/lavalink
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

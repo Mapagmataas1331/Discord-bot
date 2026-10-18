@@ -50,6 +50,10 @@ const migrations: readonly string[] = [
   CREATE INDEX idx_reminders_due ON reminders (due_at);
   CREATE INDEX idx_reminders_user ON reminders (guild_id, user_id);
   `,
+  // 3: music DJ role
+  `
+  ALTER TABLE guild_settings ADD COLUMN dj_role_id TEXT;
+  `,
 ];
 
 function migrate(db: DatabaseSync): void {

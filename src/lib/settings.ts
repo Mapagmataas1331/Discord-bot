@@ -10,6 +10,7 @@ export interface GuildSettings {
   welcomeMessage: string | null;
   autoRoleId: string | null;
   modLogChannelId: string | null;
+  djRoleId: string | null;
 }
 
 export type SettingKey = Exclude<keyof GuildSettings, "adminRoleIds">;
@@ -21,6 +22,7 @@ const COLUMNS: Record<SettingKey, string> = {
   welcomeMessage: "welcome_message",
   autoRoleId: "auto_role_id",
   modLogChannelId: "mod_log_channel_id",
+  djRoleId: "dj_role_id",
 };
 
 interface SettingsRow {
@@ -29,10 +31,11 @@ interface SettingsRow {
   welcome_message: string | null;
   auto_role_id: string | null;
   mod_log_channel_id: string | null;
+  dj_role_id: string | null;
 }
 
 const selectSettings = lazyStatement(
-  "SELECT cmd_channel_id, welcome_channel_id, welcome_message, auto_role_id, mod_log_channel_id FROM guild_settings WHERE guild_id = ?",
+  "SELECT cmd_channel_id, welcome_channel_id, welcome_message, auto_role_id, mod_log_channel_id, dj_role_id FROM guild_settings WHERE guild_id = ?",
 );
 const selectAdminRoles = lazyStatement("SELECT role_id FROM admin_roles WHERE guild_id = ? ORDER BY rowid");
 const insertAdminRole = lazyStatement("INSERT OR IGNORE INTO admin_roles (guild_id, role_id) VALUES (?, ?)");
@@ -58,6 +61,7 @@ export function getSettings(guildId: string): GuildSettings {
     welcomeMessage: row?.welcome_message ?? null,
     autoRoleId: row?.auto_role_id ?? null,
     modLogChannelId: row?.mod_log_channel_id ?? null,
+    djRoleId: row?.dj_role_id ?? null,
   };
 }
 
