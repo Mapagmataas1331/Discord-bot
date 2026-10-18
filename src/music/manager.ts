@@ -1,5 +1,5 @@
 import { ChannelType, Events, type Client, type Guild } from "discord.js";
-import { LavalinkManager, type Player } from "lavalink-client";
+import { LavalinkManager, type Player, type Track, type UnresolvedTrack } from "lavalink-client";
 import { config } from "../config.js";
 import { trackEmbed } from "./format.js";
 
@@ -8,6 +8,30 @@ export const IDLE_LEAVE_MS = 3 * 60_000;
 
 let manager: LavalinkManager | null = null;
 const aloneTimers = new Map<string, NodeJS.Timeout>();
+/** guildId -> identifier of a track whose "Now playing" the /play reply already showed. */
+const announcedByReply = new Map<string, string>();
+/** guildId -> time of the last track that failed, so the queue-end message can say what happened. */
+const lastFailure = new Map<string, number>();
+
+/** Call before starting playback when the /play reply already shows this track as "Now playing". */
+export function markAnnouncedByReply(guildId: string, track: Track | UnresolvedTrack): void {
+  announcedByReply.set(guildId, track.info.identifier ?? track.info.uri ?? track.info.title);
+}
+
+/** Turns a Lavalink/YouTube exception into one short, human-readable reason. */
+export function describeTrackError(message: string | undefined | null): string {
+  const text = message ?? "";
+  if (/requires login|sign in to confirm|confirm your age|age[- ]restricted|inappropriate for some users/i.test(text)) {
+    return "YouTube only plays this video to signed-in users (age-restricted or bot check)";
+  }
+  if (/video is unavailable|video unavailable|private video|has been removed|not available in your country/i.test(text)) {
+    return "the video is unavailable (removed, private or region-locked)";
+  }
+  if (/premiere|live event will begin/i.test(text)) return "the video hasn't premiered yet";
+  if (/members[- ]only|join this channel/i.test(text)) return "the video is for channel members only";
+  const firstLine = text.replace(/^\(yts\.version: [^)]+\)\s*/, "").split("\n")[0]?.trim() ?? "";
+  return (firstLine || "unknown error").slice(0, 200);
+}
 
 export function getLavalink(): LavalinkManager | null {
   return manager;
@@ -133,20 +157,44 @@ export function setupMusic(client: Client): void {
 
   manager
     .on("trackStart", (player, track) => {
-      if (track) void announce(player, { embeds: [trackEmbed("Now playing", track)] });
+      if (!track) return;
+      if (announcedByReply.get(player.guildId) === track.info.identifier) {
+        announcedByReply.delete(player.guildId); // the /play reply already shows it
+        return;
+      }
+      announcedByReply.delete(player.guildId);
+      void announce(player, { embeds: [trackEmbed("Now playing", track)] });
     })
     .on("trackError", (player, track, payload) => {
-      const title = track?.info.title ?? "this track";
-      console.warn(`🎵 Track error in ${player.guildId}: ${payload.exception?.message ?? "unknown"}`);
-      void announce(player, `⚠️ Couldn't play **${title}**: ${payload.exception?.message ?? "unknown error"}. Skipping.`);
+      const title = (track?.info.title ?? "this track").slice(0, 150);
+      const raw = payload.exception?.message ?? payload.exception?.cause ?? "";
+      const reason = describeTrackError(raw);
+      lastFailure.set(player.guildId, Date.now());
+      announcedByReply.delete(player.guildId);
+      console.warn(`🎵 Track error in ${player.guildId} (${track?.info.identifier ?? "?"}): ${String(raw).split("\n")[0]?.slice(0, 300)}`);
+      const next = player.queue.tracks.length > 0 ? " Skipping to the next track." : "";
+      void announce(player, `⚠️ Couldn't play **${title}**: ${reason}.${next}`);
     })
     .on("trackStuck", (player, track) => {
-      void announce(player, `⚠️ **${track?.info.title ?? "Track"}** got stuck. Skipping.`);
+      lastFailure.set(player.guildId, Date.now());
+      const next = player.queue.tracks.length > 0 ? " Skipping to the next track." : "";
+      void announce(player, `⚠️ **${(track?.info.title ?? "The track").slice(0, 150)}** stopped streaming.${next}`);
     })
     .on("queueEnd", (player) => {
-      void announce(player, "✅ Queue finished. I'll leave in 3 minutes unless something else is queued.");
+      const failedJustNow = Date.now() - (lastFailure.get(player.guildId) ?? 0) < 10_000;
+      lastFailure.delete(player.guildId);
+      void announce(
+        player,
+        failedJustNow
+          ? "⏹️ Nothing left to play. I'll leave in 3 minutes unless you /play something."
+          : "✅ Queue finished. I'll leave in 3 minutes unless you /play something.",
+      );
     })
-    .on("playerDestroy", (player) => clearAloneTimer(player.guildId));
+    .on("playerDestroy", (player) => {
+      clearAloneTimer(player.guildId);
+      announcedByReply.delete(player.guildId);
+      lastFailure.delete(player.guildId);
+    });
 
   // Lavalink needs Discord's raw voice state/server events.
   client.on(Events.Raw, (packet: { t?: string }) => {

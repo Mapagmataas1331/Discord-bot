@@ -8,7 +8,7 @@ import {
 import type { RepeatMode, Track, UnresolvedTrack } from "lavalink-client";
 import { checkPublicUrl, looksLikeUrl } from "../lib/url.js";
 import { requirePlayer, requireVoiceForPlay } from "../music/guard.js";
-import { getLavalink, musicAvailable } from "../music/manager.js";
+import { describeTrackError, getLavalink, markAnnouncedByReply, musicAvailable } from "../music/manager.js";
 import {
   formatTime,
   parseTime,
@@ -119,7 +119,7 @@ const play: Command = {
     );
 
     if (result.loadType === "error" || result.loadType === "empty" || result.tracks.length === 0) {
-      const reason = result.exception?.message ? ` (${result.exception.message})` : "";
+      const reason = result.loadType === "error" ? `: ${describeTrackError(result.exception?.message)}` : "";
       await interaction.editReply(`❌ Nothing found for \`${query.slice(0, 100)}\`${reason}.`);
       if (!player.queue.current && player.queue.tracks.length === 0) await player.destroy("nothing-found");
       return;
@@ -131,27 +131,37 @@ const play: Command = {
       return;
     }
 
+    // Starting from silence: the reply itself is the "Now playing" message, so trackStart doesn't post a second one.
+    const startsNow = !player.playing && !player.paused;
     let embed: EmbedBuilder;
     if (result.loadType === "playlist") {
       const tracks = result.tracks.slice(0, room) as (Track | UnresolvedTrack)[];
       await player.queue.add(tracks, playNext ? 0 : undefined);
+      const first = player.queue.tracks[0];
       embed = new EmbedBuilder()
         .setColor(0x1db954)
         .setAuthor({ name: "Playlist queued" })
         .setDescription(
           `**${result.playlist?.name ?? "Playlist"}**: ${tracks.length} track(s)` +
-            (tracks.length < result.tracks.length ? ` (queue limit reached, ${result.tracks.length - tracks.length} skipped)` : ""),
+            (tracks.length < result.tracks.length ? ` (queue limit reached, ${result.tracks.length - tracks.length} skipped)` : "") +
+            (startsNow && first ? `\n\n▶️ **Now playing:** ${trackLink(first)} · ${trackDuration(first)}` : ""),
         );
       if (result.playlist?.thumbnail) embed.setThumbnail(result.playlist.thumbnail);
+      if (startsNow && first) markAnnouncedByReply(interaction.guildId, first);
     } else {
       const track = result.tracks[0] as Track;
       await player.queue.add(track, playNext ? 0 : undefined);
-      const position = playNext ? 1 : player.queue.tracks.length;
-      embed = trackEmbed(player.playing || player.paused ? `Queued at position ${position}` : "Starting", track);
+      if (startsNow) {
+        embed = trackEmbed("Now playing", track);
+        markAnnouncedByReply(interaction.guildId, track);
+      } else {
+        const position = playNext ? 1 : player.queue.tracks.length;
+        embed = trackEmbed(`Queued at position ${position}`, track);
+      }
     }
 
     await interaction.editReply({ embeds: [embed], allowedMentions: { parse: [] } });
-    if (!player.playing && !player.paused) await player.play();
+    if (startsNow) await player.play();
   },
 };
 

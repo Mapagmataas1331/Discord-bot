@@ -32,7 +32,7 @@ const welcome: Command = {
         .addStringOption((opt) =>
           opt
             .setName("message")
-            .setDescription("Placeholders: {user} {username} {server} {memberCount}")
+            .setDescription("Placeholders: {user} {username} {server} {memberCount} {rules}")
             .setMaxLength(1500),
         ),
     )

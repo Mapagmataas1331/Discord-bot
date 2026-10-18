@@ -112,7 +112,7 @@ Put the bot's role **above** every role it should hand out or time out (Server S
 - `/setcmdchannel set <channel>`, `/setcmdchannel clear`: restrict member commands to one channel (admins and moderation commands are exempt)
 - `/modlog set <channel>`, `/modlog clear`: where moderation actions are logged
 - `/djrole set <role>`, `/djrole clear`: require a DJ role for music controls
-- `/welcome setup <channel> [message]`, `autorole <role>`, `disable`, `test`: welcome message and auto-role. Placeholders: `{user}`, `{username}`, `{server}`, `{memberCount}`
+- `/welcome setup <channel> [message]`, `autorole <role>`, `disable`, `test`: welcome message and auto-role. Placeholders: `{user}`, `{username}`, `{server}`, `{memberCount}`, `{rules}` (the server rules channel). The default greeting is bilingual EN/RU
 - `/getrole <role>`: post a single "I agree" button that toggles a role
 - `/rolemenu <title> <role1> [style] [description] [role2..role10]`: post a self-assign menu with buttons or a dropdown
 

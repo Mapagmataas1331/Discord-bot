@@ -2,14 +2,20 @@ import { PermissionFlagsBits, type GuildMember } from "discord.js";
 import { checkAssignableRole } from "../lib/roles.js";
 import { getSettings } from "../lib/settings.js";
 
-export const DEFAULT_WELCOME_MESSAGE = "👋 Welcome {user} to **{server}**! You are member #{memberCount}.";
+export const DEFAULT_WELCOME_MESSAGE = [
+  "👋 **Welcome, {user}!** / **Привет, {user}!**",
+  "🇬🇧 Glad you're here on **{server}**, you're member #{memberCount}. Have a look at {rules}, then come say hi in the chat!",
+  "🇷🇺 Рады видеть тебя на **{server}**, ты у нас {memberCount}-й. Загляни в {rules} и заходи поздороваться в чат!",
+].join("\n");
 
 export function renderWelcome(template: string, member: GuildMember): string {
+  const rulesId = member.guild.rulesChannelId;
   return template
     .replaceAll("{user}", `${member}`)
     .replaceAll("{username}", member.user.username)
     .replaceAll("{server}", member.guild.name)
-    .replaceAll("{memberCount}", String(member.guild.memberCount));
+    .replaceAll("{memberCount}", String(member.guild.memberCount))
+    .replaceAll("{rules}", rulesId ? `<#${rulesId}>` : "the rules / правила");
 }
 
 /** Auto-role + welcome message. Requires the privileged GuildMembers intent. */
