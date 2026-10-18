@@ -8,9 +8,12 @@ import {
 } from "discord.js";
 import { commandMap } from "./cmds/index.js";
 import { config } from "./config.js";
-import { closeDb } from "./lib/db.js";
+import { closeDb, getDb } from "./lib/db.js";
+import { handleMemberJoin } from "./handlers/memberJoin.js";
 import { handleRoleButton } from "./handlers/roleButton.js";
+import { ROLE_MENU_SELECT_ID, handleRoleSelect } from "./handlers/roleSelect.js";
 import { isBotAdmin } from "./lib/permissions.js";
+import { startReminderScheduler } from "./lib/reminders.js";
 import { replyEphemeral } from "./lib/reply.js";
 import { getSettings } from "./lib/settings.js";
 import { startKeepAlive } from "./server.js";
@@ -21,14 +24,18 @@ if (!token) {
   process.exit(1);
 }
 
+getDb(); // open + migrate up front so storage problems fail fast
+
 if (config.port) startKeepAlive(config.port);
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildVoiceStates, // upcoming music support
-  ],
-});
+const intents = [
+  GatewayIntentBits.Guilds,
+  GatewayIntentBits.GuildVoiceStates, // upcoming music support
+];
+// Privileged: enable "Server Members Intent" in the Developer Portal, or set GUILD_MEMBERS_INTENT=false.
+if (config.guildMembersIntent) intents.push(GatewayIntentBits.GuildMembers);
+
+const client = new Client({ intents });
 
 process.on("unhandledRejection", (reason) => {
   console.error("❌ Unhandled promise rejection:", reason);
@@ -68,11 +75,19 @@ client.once(Events.ClientReady, async (c) => {
     }
   }
 
+  startReminderScheduler(c);
+
   c.user.setPresence({
     activities: [{ name: "sees you", type: ActivityType.Custom }],
     status: "online",
   });
 });
+
+if (config.guildMembersIntent) {
+  client.on(Events.GuildMemberAdd, (member) => {
+    handleMemberJoin(member).catch((error: unknown) => console.error("❌ Member join handler failed:", error));
+  });
+}
 
 async function handleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   const command = commandMap.get(interaction.commandName);
@@ -95,6 +110,11 @@ async function handleCommand(interaction: ChatInputCommandInteraction): Promise<
     return;
   }
 
+  if (command.requiredPermissions !== undefined && !interaction.memberPermissions.has(command.requiredPermissions)) {
+    await replyEphemeral(interaction, "❌ You don't have permission to use this command.");
+    return;
+  }
+
   const { cmdChannelId } = getSettings(interaction.guildId);
   if (cmdChannelId && !command.anyChannel && !admin && interaction.channelId !== cmdChannelId) {
     await replyEphemeral(interaction, `❌ Please use bot commands in <#${cmdChannelId}>.`);
@@ -109,8 +129,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton()) {
       if (!interaction.inCachedGuild()) return;
       const [prefix, roleId] = interaction.customId.split("_");
-      if (prefix === "getrole" && roleId) {
+      if ((prefix === "getrole" || prefix === "rolemenu") && roleId) {
         await handleRoleButton(interaction, roleId);
+      }
+      return;
+    }
+
+    if (interaction.isStringSelectMenu()) {
+      if (interaction.inCachedGuild() && interaction.customId === ROLE_MENU_SELECT_ID) {
+        await handleRoleSelect(interaction);
       }
       return;
     }
@@ -139,4 +166,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-await client.login(token);
+try {
+  await client.login(token);
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/disallowed intents/i.test(message)) {
+    console.error(
+      "❌ Discord rejected the requested intents. Enable \"Server Members Intent\" in the Developer Portal " +
+        "(Bot → Privileged Gateway Intents), or set GUILD_MEMBERS_INTENT=false to run without welcome/auto-role.",
+    );
+  } else {
+    console.error("❌ Login failed:", message);
+  }
+  closeDb();
+  process.exit(1);
+}

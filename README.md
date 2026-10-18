@@ -1,0 +1,127 @@
+# dc-bot
+
+A community Discord bot built with **discord.js v14**, TypeScript and SQLite (Node's built-in `node:sqlite`).
+
+## Features
+
+- Slash commands only, guild-only, with a typed command registry (`src/cmds/index.ts`)
+- Per-server settings stored in SQLite (survive restarts)
+- Self-assign roles via buttons or dropdowns, with safety checks (no admin/mod-permission roles,
+  no managed roles, nothing at or above the bot's own role); every click toggles the role
+- Moderation: timeouts, purge, warnings with history, and a mod log channel
+- Welcome message and auto-role for new members
+- Native Discord polls and reminders that survive restarts
+- `/help` generated from the command registry and filtered to what you can use
+
+## Requirements
+
+- Node.js **22.13 or newer** (`node:sqlite` is built in; no native build step, works on Windows and Linux ARM64)
+- pnpm 10 (`corepack enable`)
+
+## Setup
+
+```bash
+pnpm install
+cp .env.example .env        # then fill in DISCORD_TOKEN and CLIENT_ID
+pnpm build
+pnpm deploy-commands        # register slash commands (re-run whenever commands change)
+pnpm start
+```
+
+For development: `pnpm dev` runs `src/index.ts` with tsx in watch mode, and
+`pnpm deploy-commands:dev` registers commands straight from the TypeScript sources.
+Set `DEV_GUILD_ID` while developing: guild commands update instantly, while global ones can take a while.
+
+## Environment variables
+
+| Name | Required | Description |
+| --- | --- | --- |
+| `DISCORD_TOKEN` | yes | Bot token (Developer Portal → Bot). Never commit it. |
+| `CLIENT_ID` | for `deploy-commands` | Application ID (Developer Portal → General Information). |
+| `DEV_GUILD_ID` | no | If set, `deploy-commands` registers commands to this server only. Empty means global. |
+| `PORT` | no | If set, starts a small HTTP keep-alive server (`/` and `/health`). Render sets this automatically. |
+| `BOT_NICKNAME` | no | Nickname the bot sets for itself in every server on startup. Empty means no rename. |
+| `GUILD_MEMBERS_INTENT` | no | `true` (default) requests the privileged Server Members intent for welcome messages and auto-role. Set `false` if you don't enable it in the portal. |
+| `DB_PATH` | no | SQLite file path. Default `./data/bot.db`. On a server, point it at persistent storage. |
+
+## Gateway intents
+
+| Intent | Privileged | Why |
+| --- | --- | --- |
+| `Guilds` | no | Servers, channels, roles, slash commands |
+| `GuildVoiceStates` | no | Reserved for upcoming music support |
+| `GuildMembers` | **yes** | Member-join events for the welcome message and auto-role |
+
+Enable **Server Members Intent** under Developer Portal → your app → **Bot** → *Privileged Gateway Intents*.
+If it isn't enabled, login fails with a clear message. Either enable it or set `GUILD_MEMBERS_INTENT=false`.
+The Message Content intent is **not** needed.
+
+## Invite and bot permissions
+
+Invite with the `bot` and `applications.commands` scopes and these permissions:
+
+- View Channels, Send Messages, Embed Links, Read Message History, Send Polls
+- Manage Roles (role menus, `/getrole`, auto-role)
+- Manage Messages (`/purge`)
+- Moderate Members (`/timeout`)
+- Change Nickname (only if you use `BOT_NICKNAME`)
+- Connect and Speak (later, for music)
+
+Example URL (replace `CLIENT_ID`):
+`https://discord.com/oauth2/authorize?client_id=CLIENT_ID&scope=bot+applications.commands&permissions=564049803832320`
+
+Put the bot's role **above** every role it should hand out or time out (Server Settings → Roles).
+
+## Commands
+
+**General**
+- `/help [command]`: list the commands you can use, or show details for one
+- `/ping`: show bot latency
+- `/rules`: show the community rules (EN/RU)
+
+**Utility**
+- `/userinfo [user]`: account and member details (moderators also see the warning count)
+- `/serverinfo`: server statistics
+- `/avatar [user] [global]`: full-size avatar
+- `/poll <question> <answers> [hours] [multiple]`: native Discord poll. Separate answers with `;`
+- `/remind me <in> <message>`, `/remind list`, `/remind cancel <id>`: reminders such as `10m`, `2h`, `1d12h`, kept across restarts
+
+**Moderation** (needs Discord permissions)
+- `/timeout <member> <duration|off> [reason]`: time out for up to 28 days, or remove a timeout (Timeout Members)
+- `/purge <amount> [user]`: bulk-delete up to 100 messages newer than 14 days (Manage Messages)
+- `/warn <member> <reason>`: store a warning and DM the member (Timeout Members)
+- `/warnings view|clear <user>`, `/warnings remove <id>`: view or clear warning history (Timeout Members)
+
+**Admin** (Manage Server, or a role added with `/setadminroles`)
+- `/settings`: show this server's settings
+- `/setadminroles add|remove <role>`, `/setadminroles list`: choose which roles count as bot admins (Manage Server only)
+- `/setcmdchannel set <channel>`, `/setcmdchannel clear`: restrict member commands to one channel (admins and moderation commands are exempt)
+- `/modlog set <channel>`, `/modlog clear`: where moderation actions are logged
+- `/welcome setup <channel> [message]`, `autorole <role>`, `disable`, `test`: welcome message and auto-role. Placeholders: `{user}`, `{username}`, `{server}`, `{memberCount}`
+- `/getrole <role>`: post a single "I agree" button that toggles a role
+- `/rolemenu <title> <role1> [style] [description] [role2..role10]`: post a self-assign menu with buttons or a dropdown
+
+Admin commands set no `default_member_permissions`, so roles added with `/setadminroles` can see them.
+The bot checks permission when a command runs. To hide admin commands from everyone else, use
+Server Settings → Integrations → the bot. `/setadminroles` defaults to Manage Server, and the moderation
+commands default to their matching Discord permission.
+
+## Project layout
+
+```
+src/
+  index.ts              client, event wiring, interaction routing
+  deploy-commands.ts    registers slash commands (global or DEV_GUILD_ID)
+  config.ts             environment variables
+  server.ts             optional HTTP keep-alive
+  types.ts              Command interface
+  cmds/                 one file per command + index.ts registry
+  handlers/             buttons, select menus, member join
+  lib/                  db, settings, roles, permissions, warnings, reminders, mod log, durations
+```
+
+## Adding a command
+
+1. Create `src/cmds/mycommand.ts` exporting a `Command` (see `ping.ts`).
+2. Add it to the list in `src/cmds/index.ts`.
+3. Run `pnpm build && pnpm deploy-commands`.

@@ -1,7 +1,7 @@
 /**
  * Per-guild bot settings, persisted in SQLite.
  */
-import { db } from "./db.js";
+import { lazyStatement } from "./db.js";
 
 export interface GuildSettings {
   cmdChannelId: string | null;
@@ -31,26 +31,26 @@ interface SettingsRow {
   mod_log_channel_id: string | null;
 }
 
-const selectSettings = db.prepare(
+const selectSettings = lazyStatement(
   "SELECT cmd_channel_id, welcome_channel_id, welcome_message, auto_role_id, mod_log_channel_id FROM guild_settings WHERE guild_id = ?",
 );
-const selectAdminRoles = db.prepare("SELECT role_id FROM admin_roles WHERE guild_id = ? ORDER BY rowid");
-const insertAdminRole = db.prepare("INSERT OR IGNORE INTO admin_roles (guild_id, role_id) VALUES (?, ?)");
-const deleteAdminRole = db.prepare("DELETE FROM admin_roles WHERE guild_id = ? AND role_id = ?");
+const selectAdminRoles = lazyStatement("SELECT role_id FROM admin_roles WHERE guild_id = ? ORDER BY rowid");
+const insertAdminRole = lazyStatement("INSERT OR IGNORE INTO admin_roles (guild_id, role_id) VALUES (?, ?)");
+const deleteAdminRole = lazyStatement("DELETE FROM admin_roles WHERE guild_id = ? AND role_id = ?");
 
 const upserts = Object.fromEntries(
   Object.entries(COLUMNS).map(([key, column]) => [
     key,
-    db.prepare(
+    lazyStatement(
       `INSERT INTO guild_settings (guild_id, ${column}) VALUES (?, ?)
        ON CONFLICT(guild_id) DO UPDATE SET ${column} = excluded.${column}`,
     ),
   ]),
-) as Record<SettingKey, ReturnType<typeof db.prepare>>;
+) as Record<SettingKey, ReturnType<typeof lazyStatement>>;
 
 export function getSettings(guildId: string): GuildSettings {
-  const row = selectSettings.get(guildId) as SettingsRow | undefined;
-  const roles = selectAdminRoles.all(guildId) as unknown as Array<{ role_id: string }>;
+  const row = selectSettings().get(guildId) as SettingsRow | undefined;
+  const roles = selectAdminRoles().all(guildId) as unknown as Array<{ role_id: string }>;
   return {
     cmdChannelId: row?.cmd_channel_id ?? null,
     adminRoleIds: roles.map((r) => r.role_id),
@@ -62,7 +62,7 @@ export function getSettings(guildId: string): GuildSettings {
 }
 
 export function setSetting(guildId: string, key: SettingKey, value: string | null): void {
-  upserts[key].run(guildId, value);
+  upserts[key]().run(guildId, value);
 }
 
 export function setCmdChannel(guildId: string, channelId: string | null): void {
@@ -71,10 +71,10 @@ export function setCmdChannel(guildId: string, channelId: string | null): void {
 
 /** Returns false if the role was already an admin role. */
 export function addAdminRole(guildId: string, roleId: string): boolean {
-  return Number(insertAdminRole.run(guildId, roleId).changes) > 0;
+  return Number(insertAdminRole().run(guildId, roleId).changes) > 0;
 }
 
 /** Returns false if the role was not an admin role. */
 export function removeAdminRole(guildId: string, roleId: string): boolean {
-  return Number(deleteAdminRole.run(guildId, roleId).changes) > 0;
+  return Number(deleteAdminRole().run(guildId, roleId).changes) > 0;
 }
