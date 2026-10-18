@@ -125,3 +125,14 @@ src/
 1. Create `src/cmds/mycommand.ts` exporting a `Command` (see `ping.ts`).
 2. Add it to the list in `src/cmds/index.ts`.
 3. Run `pnpm build && pnpm deploy-commands`.
+
+## Deployment
+
+Production runs on an Oracle Cloud Ubuntu 24.04 arm64 VM (Always Free A1) under systemd. Files and the full install steps are in [`deploy/`](deploy/README.md).
+
+- Code: `/opt/discord-bot/app` (git checkout of `main`, owned by the `discordbot` system user)
+- Secrets: `/opt/discord-bot/app/.env` (mode 600, never committed)
+- Database: `/opt/discord-bot/data/bot.db` (`DB_PATH`)
+- Service: `discord-bot.service` (node 22, `Restart=always`, `MemoryMax=512M`, hardened)
+- Auto-update: `discord-bot-update.timer` runs `/opt/discord-bot/update.sh` every 5 minutes. When `main` changes it pulls, installs, builds, re-registers commands if needed, and restarts the bot.
+- Logs: `journalctl -u discord-bot -f` (bot), `journalctl -u discord-bot-update` (updates)

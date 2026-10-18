@@ -5,6 +5,8 @@ node_modules/
 
 # TypeScript build output
 dist/
+.dist-new/
+.dist-old/
 *.tsbuildinfo
 
 # Local database

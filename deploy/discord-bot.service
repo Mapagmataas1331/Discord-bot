@@ -1,0 +1,45 @@
+[Unit]
+Description=Discord bot (dc-bot)
+Documentation=https://github.com/Mapagmataas1331/Discord-bot
+After=network-online.target
+Wants=network-online.target
+# Keep retrying forever (no start rate limit).
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=discordbot
+Group=discordbot
+WorkingDirectory=/opt/discord-bot/app
+# Same as `pnpm start`, without pnpm in the process tree. dotenv loads /opt/discord-bot/app/.env.
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning dist/index.js
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=5
+MemoryMax=512M
+UMask=0077
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/discord-bot
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,27 @@
+[Unit]
+Description=Update the Discord bot from git and restart it if needed
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=discordbot
+Group=discordbot
+WorkingDirectory=/opt/discord-bot/app
+Environment=HOME=/opt/discord-bot
+ExecStart=/opt/discord-bot/update.sh
+TimeoutStartSec=15min
+Nice=10
+
+# Hardening (the restart is allowed through a polkit rule, so no sudo/setuid is needed)
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/discord-bot
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true

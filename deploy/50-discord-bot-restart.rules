@@ -1,0 +1,12 @@
+// Let the discordbot user restart (only) discord-bot.service, used by update.sh.
+// Install to /etc/polkit-1/rules.d/50-discord-bot-restart.rules
+polkit.addRule(function (action, subject) {
+  if (
+    action.id == "org.freedesktop.systemd1.manage-units" &&
+    action.lookup("unit") == "discord-bot.service" &&
+    action.lookup("verb") == "restart" &&
+    subject.user == "discordbot"
+  ) {
+    return polkit.Result.YES;
+  }
+});
