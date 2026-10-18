@@ -49,6 +49,7 @@ const getrole: Command = {
       const embed = rulesGateEmbed(rules).setFooter({ text: `Role: ${role.name}` });
       // The welcome message links here ({gate}).
       setSetting(interaction.guildId, "gateChannelId", interaction.channelId);
+      setSetting(interaction.guildId, "memberRoleId", role.id);
       await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder<ButtonBuilder>().addComponents(button)] });
       return;
     }

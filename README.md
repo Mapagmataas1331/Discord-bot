@@ -112,6 +112,7 @@ Put the bot's role **above** every role it should hand out or time out (Server S
 - `/setcmdchannel set <channel>`, `/setcmdchannel clear`: restrict member commands to one channel (admins and moderation commands are exempt)
 - `/modlog set <channel>`, `/modlog clear`: where moderation actions are logged
 - `/djrole set <role>`, `/djrole clear`: require a DJ role for music controls
+- `/innerrole set <member> <inner>`, `/innerrole run`, `/innerrole clear`: members who have the inner role (e.g. ⭐ Inner circle) automatically lose the redundant member role. Checked on startup, on every role change and every 45 minutes; the rules-gate button doesn't grant the member role to them
 - `/welcome setup <channel> [message]`, `autorole <role>`, `disable`, `test`: welcome message and auto-role. Placeholders: `{user}`, `{username}`, `{server}`, `{memberCount}`, `{rules}` (the server rules channel), `{gate}` (the channel with the `/getrole mode:agree` button). The default greeting is bilingual EN/RU
 - `/getrole <role> [mode]`: post a single button for a role. `mode: toggle` (default) adds/removes it; `mode: agree` is a rules gate that only ever grants the role and becomes the `{gate}` channel in the welcome message
 - `/rolemenu <title> <role1> [style] [description] [role2..role10]`: post a self-assign menu with buttons or a dropdown

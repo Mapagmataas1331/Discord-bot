@@ -1,4 +1,5 @@
 import { PermissionFlagsBits, type GuildMember } from "discord.js";
+import { hasInnerRole } from "../lib/roleDedupe.js";
 import { checkAssignableRole } from "../lib/roles.js";
 import { getSettings } from "../lib/settings.js";
 
@@ -25,7 +26,7 @@ export async function handleMemberJoin(member: GuildMember): Promise<void> {
   if (member.user.bot) return;
   const settings = getSettings(member.guild.id);
 
-  if (settings.autoRoleId) {
+  if (settings.autoRoleId && !hasInnerRole(member)) {
     const role = member.guild.roles.cache.get(settings.autoRoleId);
     const problem = role ? checkAssignableRole(role) : "role was deleted";
     if (role && !problem) {

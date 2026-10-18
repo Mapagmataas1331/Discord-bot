@@ -3,6 +3,7 @@ import avatar from "./avatar.js";
 import getrole from "./getrole.js";
 import djrole from "./djrole.js";
 import help from "./help.js";
+import innerrole from "./innerrole.js";
 import modlog from "./modlog.js";
 import { musicCommands } from "./music.js";
 import ping from "./ping.js";
@@ -48,6 +49,7 @@ export const commands: readonly Command[] = [
   setcmdchannel,
   modlog,
   djrole,
+  innerrole,
   welcome,
   getrole,
   rolemenu,

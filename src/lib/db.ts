@@ -58,6 +58,11 @@ const migrations: readonly string[] = [
   `
   ALTER TABLE guild_settings ADD COLUMN gate_channel_id TEXT;
   `,
+  // 5: role dedupe (members with the inner role don't also keep the member role)
+  `
+  ALTER TABLE guild_settings ADD COLUMN member_role_id TEXT;
+  ALTER TABLE guild_settings ADD COLUMN inner_role_id TEXT;
+  `,
 ];
 
 function migrate(db: DatabaseSync): void {

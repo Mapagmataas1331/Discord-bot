@@ -1,4 +1,5 @@
 import { MessageFlags, type ButtonInteraction } from "discord.js";
+import { hasInnerRole } from "../lib/roleDedupe.js";
 import { checkAssignableRole, grantRole, toggleRole } from "../lib/roles.js";
 
 /** Handles self-assign role buttons. Re-validates the role on every click. */
@@ -24,6 +25,12 @@ export async function handleRoleButton(
   }
 
   if (mode === "grant") {
+    if (hasInnerRole(interaction.member)) {
+      await interaction.editReply(
+        "👌 You already have full access through your inner-circle role, nothing to unlock.\n👌 У тебя уже есть полный доступ через роль своих, открывать ничего не нужно.",
+      );
+      return;
+    }
     const granted = await grantRole(interaction.member, role);
     await interaction.editReply(
       granted === "added"

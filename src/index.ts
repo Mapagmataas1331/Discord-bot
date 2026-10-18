@@ -14,6 +14,7 @@ import { handleRoleButton } from "./handlers/roleButton.js";
 import { ROLE_MENU_SELECT_ID, handleRoleSelect } from "./handlers/roleSelect.js";
 import { isBotAdmin } from "./lib/permissions.js";
 import { startReminderScheduler } from "./lib/reminders.js";
+import { dedupeMember, startRoleDedupeScheduler } from "./lib/roleDedupe.js";
 import { replyEphemeral } from "./lib/reply.js";
 import { getSettings } from "./lib/settings.js";
 import { setupMusic } from "./music/manager.js";
@@ -78,6 +79,7 @@ client.once(Events.ClientReady, async (c) => {
   }
 
   startReminderScheduler(c);
+  if (config.guildMembersIntent) startRoleDedupeScheduler(c);
 
   c.user.setPresence({
     activities: [{ name: "sees you", type: ActivityType.Custom }],
@@ -88,6 +90,10 @@ client.once(Events.ClientReady, async (c) => {
 if (config.guildMembersIntent) {
   client.on(Events.GuildMemberAdd, (member) => {
     handleMemberJoin(member).catch((error: unknown) => console.error("❌ Member join handler failed:", error));
+  });
+  client.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
+    if (!oldMember.partial && oldMember.roles.cache.equals(newMember.roles.cache)) return;
+    dedupeMember(newMember).catch((error: unknown) => console.error("❌ Role dedupe on member update failed:", error));
   });
 }
 

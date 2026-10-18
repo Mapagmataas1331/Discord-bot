@@ -12,6 +12,10 @@ export interface GuildSettings {
   modLogChannelId: string | null;
   djRoleId: string | null;
   gateChannelId: string | null;
+  /** Base "verified" role (granted by the rules gate). */
+  memberRoleId: string | null;
+  /** Higher role that replaces the member role: members holding both lose the member role. */
+  innerRoleId: string | null;
 }
 
 export type SettingKey = Exclude<keyof GuildSettings, "adminRoleIds">;
@@ -25,6 +29,8 @@ const COLUMNS: Record<SettingKey, string> = {
   modLogChannelId: "mod_log_channel_id",
   djRoleId: "dj_role_id",
   gateChannelId: "gate_channel_id",
+  memberRoleId: "member_role_id",
+  innerRoleId: "inner_role_id",
 };
 
 interface SettingsRow {
@@ -35,10 +41,12 @@ interface SettingsRow {
   mod_log_channel_id: string | null;
   dj_role_id: string | null;
   gate_channel_id: string | null;
+  member_role_id: string | null;
+  inner_role_id: string | null;
 }
 
 const selectSettings = lazyStatement(
-  "SELECT cmd_channel_id, welcome_channel_id, welcome_message, auto_role_id, mod_log_channel_id, dj_role_id, gate_channel_id FROM guild_settings WHERE guild_id = ?",
+  "SELECT cmd_channel_id, welcome_channel_id, welcome_message, auto_role_id, mod_log_channel_id, dj_role_id, gate_channel_id, member_role_id, inner_role_id FROM guild_settings WHERE guild_id = ?",
 );
 const selectAdminRoles = lazyStatement("SELECT role_id FROM admin_roles WHERE guild_id = ? ORDER BY rowid");
 const insertAdminRole = lazyStatement("INSERT OR IGNORE INTO admin_roles (guild_id, role_id) VALUES (?, ?)");
@@ -66,6 +74,8 @@ export function getSettings(guildId: string): GuildSettings {
     modLogChannelId: row?.mod_log_channel_id ?? null,
     djRoleId: row?.dj_role_id ?? null,
     gateChannelId: row?.gate_channel_id ?? null,
+    memberRoleId: row?.member_role_id ?? null,
+    innerRoleId: row?.inner_role_id ?? null,
   };
 }
 
