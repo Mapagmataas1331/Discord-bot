@@ -19,7 +19,7 @@
     "build": "pnpm run clean && tsc",
     "typecheck": "tsc --noEmit",
     "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "start": "node --disable-warning=ExperimentalWarning dist/index.js",
     "deploy-commands": "node dist/deploy-commands.js",
     "deploy-commands:dev": "tsx src/deploy-commands.ts"
   },

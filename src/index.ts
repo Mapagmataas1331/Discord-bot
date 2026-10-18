@@ -8,6 +8,7 @@ import {
 } from "discord.js";
 import { commandMap } from "./cmds/index.js";
 import { config } from "./config.js";
+import { closeDb } from "./lib/db.js";
 import { handleRoleButton } from "./handlers/roleButton.js";
 import { isBotAdmin } from "./lib/permissions.js";
 import { replyEphemeral } from "./lib/reply.js";
@@ -35,8 +36,19 @@ process.on("unhandledRejection", (reason) => {
 
 process.on("uncaughtException", (error) => {
   console.error("❌ Uncaught exception, shutting down:", error);
+  closeDb();
   process.exit(1); // let the process manager restart us in a clean state
 });
+
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    console.log(`👋 Received ${signal}, shutting down...`);
+    void client.destroy().finally(() => {
+      closeDb();
+      process.exit(0);
+    });
+  });
+}
 
 client.on(Events.Error, (error) => console.error("❌ Discord client error:", error));
 client.on(Events.Warn, (info) => console.warn("⚠️ Discord client warning:", info));

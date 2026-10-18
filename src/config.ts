@@ -17,4 +17,5 @@ export const config = {
   devGuildId: optional("DEV_GUILD_ID"),
   port: optional("PORT"),
   botNickname: optional("BOT_NICKNAME"),
+  dbPath: optional("DB_PATH") ?? "./data/bot.db",
 };
