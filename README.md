@@ -151,5 +151,7 @@ Production runs on an Oracle Cloud Ubuntu 24.04 arm64 VM (Always Free A1) under 
 - Database: `/opt/discord-bot/data/bot.db` (`DB_PATH`)
 - Service: `discord-bot.service` (node 22, `Restart=always`, `MemoryMax=512M`, hardened)
 - Music: `lavalink.service` (Lavalink v4 on `127.0.0.1:2333`, `/opt/lavalink`). See [`deploy/lavalink/`](deploy/lavalink/README.md)
-- Auto-update: `discord-bot-update.timer` runs `/opt/discord-bot/update.sh` every 5 minutes. When `main` changes it pulls, installs, builds, re-registers commands if needed, and restarts the bot.
+- Push deploys: [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) runs on every push to `main` (and manually via *Run workflow*). It installs and builds on GitHub, then SSHes to the VM with a deploy key that can only run the update (forced command `/usr/local/sbin/discord-bot-deploy`). The run turns red if the server-side build, command registration or restart fails.
+- Backup auto-update: `discord-bot-update.timer` also runs `/opt/discord-bot/update.sh` hourly. Both paths go through `discord-bot-update.service` and a lock, so they never run at the same time. When `main` changes it pulls, installs, builds, re-registers commands if needed, and restarts the bot.
+- Repo secrets for the workflow: `ORACLE_HOST`, `ORACLE_SSH_KEY` (deploy private key), `ORACLE_KNOWN_HOSTS` (pinned server host keys). Optional variable `ORACLE_USER` (default `ma`).
 - Logs: `journalctl -u discord-bot -f` (bot), `journalctl -u discord-bot-update` (updates)

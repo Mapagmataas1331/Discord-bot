@@ -1,0 +1,62 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time; a newer push waits for the running deploy instead of cancelling it mid-update.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Install and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6 # version comes from "packageManager" in package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  deploy:
+    name: Deploy to Oracle VM
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Set up SSH (pinned host key)
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.ORACLE_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      # The key is restricted on the server to a forced command that runs the bot update and nothing else.
+      - name: Run the update on the server
+        env:
+          HOST: ${{ secrets.ORACLE_HOST }}
+          SSH_USER: ${{ vars.ORACLE_USER || 'ma' }}
+        run: >
+          ssh -i ~/.ssh/deploy_key
+          -o IdentitiesOnly=yes -o BatchMode=yes
+          -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts
+          -o ConnectTimeout=20 -o ServerAliveInterval=30
+          "$SSH_USER@$HOST" deploy
+
+      - name: Remove key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

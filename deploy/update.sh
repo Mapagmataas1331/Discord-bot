@@ -1,20 +1,26 @@
 #!/usr/bin/env bash
 # Pulls the tracked branch, rebuilds, re-registers commands if needed, and restarts the bot.
-# Runs as `discordbot` from discord-bot-update.service (timer: every 5 minutes). Logs go to the journal.
+# Runs as `discordbot` from discord-bot-update.service, which is started on every push to main by GitHub Actions
+# (through deploy/remote-deploy.sh) and hourly by discord-bot-update.timer as a backup. Logs go to the journal.
 # A failed install/build never touches the running bot: code is rolled back and the service is not restarted.
+# Exits non-zero when the install, build, command registration or restart fails, so the deploy shows as failed.
 set -euo pipefail
 
 BRANCH="${BRANCH:-main}"            # branch to track
 APP_DIR="${APP_DIR:-/opt/discord-bot/app}"
 SERVICE="discord-bot.service"
 STATE_DIR="/opt/discord-bot"
-FAILED_MARK="$STATE_DIR/.update-failed"   # remembers a commit that failed to build, so we don't retry it every 5 min
+FAILED_MARK="$STATE_DIR/.update-failed"   # remembers a commit that failed to build, so the timer doesn't retry it every hour
+LOCK_WAIT="${LOCK_WAIT:-600}"             # seconds to wait if another update is already running
 
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 CI=true
 log() { echo "[update] $*"; }
 
 exec 9>"$STATE_DIR/.update.lock"
-flock -n 9 || { log "another update is running; skipping"; exit 0; }
+if ! flock -n 9; then
+  log "another update is running; waiting up to ${LOCK_WAIT}s"
+  flock -w "$LOCK_WAIT" 9 || { log "ERROR: timed out waiting for the other update"; exit 1; }
+fi
 
 cd "$APP_DIR"
 git fetch --quiet origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
@@ -55,14 +61,24 @@ rm -rf .dist-old
 mv .dist-new dist
 rm -rf .dist-old
 rm -f "$FAILED_MARK"
+STATUS=0
 
 if [[ "$CHANGED" == "unknown" ]] || grep -qE '^(src/cmds/|src/deploy-commands\.ts|package\.json|pnpm-lock\.yaml)' <<<"$CHANGED"; then
   log "commands may have changed; re-registering slash commands"
-  node dist/deploy-commands.js || log "WARNING: deploy-commands failed (bot will still restart)"
+  if ! node dist/deploy-commands.js; then
+    log "ERROR: deploy-commands failed (the bot is still restarted on the new code)"
+    STATUS=1
+  fi
 else
   log "no command changes; skipping deploy-commands"
 fi
 
 log "restarting $SERVICE"
 systemctl restart "$SERVICE"
+sleep 10
+if ! systemctl is-active --quiet "$SERVICE"; then
+  log "ERROR: $SERVICE is not running after the restart (see journalctl -u $SERVICE)"
+  exit 1
+fi
 log "done: now at $BRANCH @ ${REMOTE:0:7}"
+exit "$STATUS"
