@@ -1,26 +1,22 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import type { BotClient } from "../index";
+import { InteractionContextType, SlashCommandBuilder } from "discord.js";
+import type { Command } from "../types.js";
 
-export default {
+const ping: Command = {
+  category: "general",
   data: new SlashCommandBuilder()
     .setName("ping")
-    .setDescription("Check bot latency."),
+    .setDescription("Check bot latency.")
+    .setContexts(InteractionContextType.Guild),
 
-  async execute(interaction: ChatInputCommandInteraction, client: BotClient) {
-    // Check if command channel is set
-    if (client.cmdChannelId && interaction.channelId !== client.cmdChannelId) {
-      await interaction.reply({
-        content: "❌ You can only use this command in the command channel.",
-        flags: "Ephemeral",
-      });
-
-      return;
-    }
-
-    // Always acknowledge quickly to avoid "Unknown interaction" (10062)
+  async execute(interaction) {
     await interaction.deferReply();
     const sent = await interaction.fetchReply();
-    const latency = (sent.createdTimestamp || 0) - interaction.createdTimestamp;
-    await interaction.editReply(`🏓 Pong! Latency: ${latency}ms`);
+    const roundTrip = sent.createdTimestamp - interaction.createdTimestamp;
+    const gateway = interaction.client.ws.ping;
+    await interaction.editReply(
+      `🏓 Pong! Round-trip: ${roundTrip}ms · Gateway: ${gateway >= 0 ? `${gateway}ms` : "n/a"}`,
+    );
   },
 };
+
+export default ping;

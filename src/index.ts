@@ -1,225 +1,130 @@
 import {
-  Client,
-  GatewayIntentBits,
-  Collection,
-  Events,
   ActivityType,
-  REST,
-  Routes,
-  ChatInputCommandInteraction,
-  ButtonInteraction,
-  GuildMemberRoleManager,
+  Client,
+  Events,
+  GatewayIntentBits,
   MessageFlags,
+  type ChatInputCommandInteraction,
 } from "discord.js";
-import * as fs from "fs";
-import * as path from "path";
-import * as dotenv from "dotenv";
-import { fileURLToPath, pathToFileURL } from "url";
+import { commandMap } from "./cmds/index.js";
+import { config } from "./config.js";
+import { handleRoleButton } from "./handlers/roleButton.js";
+import { isBotAdmin } from "./lib/permissions.js";
+import { replyEphemeral } from "./lib/reply.js";
+import { getSettings } from "./lib/settings.js";
+import { startKeepAlive } from "./server.js";
 
-import "./server.js";
-
-dotenv.config();
-
-const token = process.env.DISCORD_TOKEN;
-const clientId = process.env.CLIENT_ID;
-
-if (!token || !clientId) {
-  console.error("❌ Missing DISCORD_TOKEN or CLIENT_ID in environment!");
+const { token } = config;
+if (!token) {
+  console.error("❌ Missing DISCORD_TOKEN in environment!");
   process.exit(1);
 }
 
-// Extend Client type
-export interface BotClient extends Client {
-  commands: Collection<string, any>;
-  cmdChannelId?: string;
-  adminRoles?: Set<string>;
-}
+if (config.port) startKeepAlive(config.port);
 
-const client: BotClient = new Client({
+const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates, // upcoming music support
   ],
-}) as BotClient;
+});
 
 process.on("unhandledRejection", (reason) => {
   console.error("❌ Unhandled promise rejection:", reason);
 });
 
 process.on("uncaughtException", (error) => {
-  console.error("❌ Uncaught exception:", error);
+  console.error("❌ Uncaught exception, shutting down:", error);
+  process.exit(1); // let the process manager restart us in a clean state
 });
 
-client.on(Events.Error, (error) => {
-  console.error("❌ Discord client error:", error);
-});
+client.on(Events.Error, (error) => console.error("❌ Discord client error:", error));
+client.on(Events.Warn, (info) => console.warn("⚠️ Discord client warning:", info));
 
-client.on(Events.Warn, (info) => {
-  console.warn("⚠️ Discord client warning:", info);
-});
-
-client.commands = new Collection();
-
-// Load commands dynamically
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const cmdsPath = path.join(__dirname, "cmds");
-const commandFiles = fs
-  .readdirSync(cmdsPath)
-  .filter(
-    (file) =>
-      (file.endsWith(".ts") && !file.endsWith(".d.ts")) ||
-      (file.endsWith(".js") && !file.endsWith(".js.map")),
-  );
-const commandsData = [];
-
-for (const file of commandFiles) {
-  const filePath = path.join(cmdsPath, file);
-  const command = (await import(pathToFileURL(filePath).href)).default;
-  if ("data" in command && "execute" in command) {
-    client.commands.set(command.data.name, command);
-    commandsData.push(command.data.toJSON());
-  } else {
-    console.warn(`⚠️ Command ${file} missing "data" or "execute".`);
-  }
-}
-
-// Register slash commands
-const rest = new REST({ version: "10" }).setToken(token);
-(async () => {
-  try {
-    console.log("🔁 Refreshing application commands...");
-    await rest.put(Routes.applicationCommands(clientId), {
-      body: commandsData,
-    });
-    console.log("✅ Commands registered globally!");
-  } catch (error) {
-    console.error("❌ Failed to register commands:", error);
-  }
-})();
-
-// Bot ready
 client.once(Events.ClientReady, async (c) => {
-  console.log(`✅ Logged in as ${c.user.tag}`);
+  console.log(`✅ Logged in as ${c.user.tag} (${c.guilds.cache.size} servers)`);
 
-  for (const [, guild] of client.guilds.cache) {
-    const me = guild.members.me;
-    if (me) {
+  if (config.botNickname) {
+    for (const guild of c.guilds.cache.values()) {
+      const me = guild.members.me;
+      if (!me || me.nickname === config.botNickname) continue;
       try {
-        await me.setNickname("ma");
-        console.log(`📝 Updated nickname in guild: ${guild.name}`);
+        await me.setNickname(config.botNickname);
       } catch (err) {
         console.warn(`⚠️ Could not set nickname in ${guild.name}:`, err);
       }
     }
   }
 
-  client.user?.setPresence({
+  c.user.setPresence({
     activities: [{ name: "sees you", type: ActivityType.Custom }],
     status: "online",
   });
 });
 
-// Interaction handler (buttons + slash commands)
+async function handleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  const command = commandMap.get(interaction.commandName);
+  if (!command) {
+    await replyEphemeral(interaction, "❌ Unknown command. It may have been removed.");
+    return;
+  }
+
+  if (!interaction.inCachedGuild()) {
+    await replyEphemeral(interaction, "❌ This command can only be used in a server.");
+    return;
+  }
+
+  const admin = isBotAdmin(interaction.member);
+  if (command.adminOnly && !admin) {
+    await replyEphemeral(
+      interaction,
+      "❌ This is an admin command. You need Manage Server or a role added with `/setadminroles`.",
+    );
+    return;
+  }
+
+  const { cmdChannelId } = getSettings(interaction.guildId);
+  if (cmdChannelId && !command.anyChannel && !admin && interaction.channelId !== cmdChannelId) {
+    await replyEphemeral(interaction, `❌ Please use bot commands in <#${cmdChannelId}>.`);
+    return;
+  }
+
+  await command.execute(interaction);
+}
+
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    // -------- BUTTON INTERACTIONS --------
     if (interaction.isButton()) {
-      const buttonInteraction = interaction as ButtonInteraction;
-
-      const [prefix, roleId] = buttonInteraction.customId.split("_");
-
-      // Validate prefix and roleId
-      if (prefix !== "getrole" || !roleId) {
-        await buttonInteraction.reply({
-          content: "❌ Invalid button ID.",
-          flags: "Ephemeral",
-        });
-
-        return;
+      if (!interaction.inCachedGuild()) return;
+      const [prefix, roleId] = interaction.customId.split("_");
+      if (prefix === "getrole" && roleId) {
+        await handleRoleButton(interaction, roleId);
       }
-
-      // Ensure this is used in a guild
-      if (!buttonInteraction.guild) {
-        await buttonInteraction.reply({
-          content: "❌ This button can only be used in a server.",
-          flags: "Ephemeral",
-        });
-
-        return;
-      }
-
-      // Get the role safely
-      const role = buttonInteraction.guild.roles.cache.get(roleId);
-      if (!role) {
-        await buttonInteraction.reply({
-          content: "❌ Role not found.",
-          flags: "Ephemeral",
-        });
-
-        return;
-      }
-
-      // Ensure member has roles property
-      if (!buttonInteraction.member || !("roles" in buttonInteraction.member)) {
-        await buttonInteraction.reply({
-          content: "❌ Cannot assign role.",
-          flags: "Ephemeral",
-        });
-
-        return;
-      }
-
-      const memberRoles = buttonInteraction.member
-        .roles as GuildMemberRoleManager;
-
-      await buttonInteraction.deferReply({ flags: MessageFlags.Ephemeral });
-      await memberRoles.add(role);
-      await buttonInteraction.editReply({
-        content: `✅ You’ve been given the ${role.name} role!`,
-      });
-
       return;
     }
 
-    // -------- SLASH COMMANDS --------
-    if (!interaction.isChatInputCommand()) return;
-    const chatInteraction = interaction as ChatInputCommandInteraction;
-    const command = client.commands.get(chatInteraction.commandName);
-
-    if (!command) {
-      await chatInteraction.reply({
-        content: "❌ Command not found.",
-        flags: "Ephemeral",
-      });
-
-      return;
+    if (interaction.isChatInputCommand()) {
+      await handleCommand(interaction);
     }
-
-    await command.execute(chatInteraction, client);
   } catch (error) {
     console.error("❌ Error handling interaction:", error);
-
     if (!interaction.isRepliable()) return;
-
     try {
       if (interaction.deferred || interaction.replied) {
         await interaction.followUp({
-          content: "❌ There was an error executing this interaction.",
-          flags: "Ephemeral",
+          content: "❌ Something went wrong while running that.",
+          flags: MessageFlags.Ephemeral,
         });
       } else {
         await interaction.reply({
-          content: "❌ There was an error executing this interaction.",
-          flags: "Ephemeral",
+          content: "❌ Something went wrong while running that.",
+          flags: MessageFlags.Ephemeral,
         });
       }
     } catch (replyError) {
-      // If the interaction is already expired/acknowledged, don't crash the process.
-      console.error("⚠️ Failed to reply to interaction error:", replyError);
+      console.error("⚠️ Failed to report interaction error:", replyError);
     }
   }
 });
 
-client.login(token);
+await client.login(token);

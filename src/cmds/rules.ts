@@ -1,21 +1,14 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
-import type { BotClient } from "../index";
+import { EmbedBuilder, InteractionContextType, SlashCommandBuilder } from "discord.js";
+import type { Command } from "../types.js";
 
-export default {
+const rules: Command = {
+  category: "general",
   data: new SlashCommandBuilder()
     .setName("rules")
-    .setDescription("Show the community rules."),
+    .setDescription("Show the community rules.")
+    .setContexts(InteractionContextType.Guild),
 
-  async execute(interaction: ChatInputCommandInteraction, client: BotClient) {
-    if (client.cmdChannelId && interaction.channelId !== client.cmdChannelId) {
-      await interaction.reply({
-        content: "❌ Use this command in the command channel.",
-        flags: "Ephemeral",
-      });
-
-      return;
-    }
-
+  async execute(interaction) {
     const rulesEmbed = new EmbedBuilder()
       .setTitle("📜 Community Rules / Правила сообщества")
       .setDescription(
@@ -41,3 +34,5 @@ export default {
     await interaction.reply({ embeds: [rulesEmbed] });
   },
 };
+
+export default rules;

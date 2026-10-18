@@ -1,16 +1,48 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from "discord.js";
-import type { BotClient } from "../index";
+import {
+  ChannelType,
+  InteractionContextType,
+  MessageFlags,
+  SlashCommandBuilder,
+} from "discord.js";
+import { setCmdChannel } from "../lib/settings.js";
+import type { Command } from "../types.js";
 
-export default {
+const setcmdchannel: Command = {
+  category: "admin",
+  adminOnly: true,
+  anyChannel: true,
   data: new SlashCommandBuilder()
     .setName("setcmdchannel")
-    .setDescription("Set the channel where bot commands can be used.")
-    .addChannelOption(opt => opt.setName("channel").setDescription("Select channel").setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDescription("Restrict member commands to one channel (admins are exempt).")
+    .addSubcommand((sub) =>
+      sub
+        .setName("set")
+        .setDescription("Set the command channel.")
+        .addChannelOption((opt) =>
+          opt
+            .setName("channel")
+            .setDescription("Text channel")
+            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+            .setRequired(true),
+        ),
+    )
+    .addSubcommand((sub) => sub.setName("clear").setDescription("Allow commands in every channel again."))
+    .setContexts(InteractionContextType.Guild),
 
-  async execute(interaction: ChatInputCommandInteraction, client: BotClient) {
-    const channel = interaction.options.getChannel("channel");
-    client.cmdChannelId = channel!.id;
-    await interaction.reply(`✅ Command channel set to ${channel}`);
+  async execute(interaction) {
+    if (interaction.options.getSubcommand(true) === "clear") {
+      setCmdChannel(interaction.guildId, null);
+      await interaction.reply({ content: "✅ Commands can be used in any channel again.", flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    const channel = interaction.options.getChannel("channel", true, [
+      ChannelType.GuildText,
+      ChannelType.GuildAnnouncement,
+    ]);
+    setCmdChannel(interaction.guildId, channel.id);
+    await interaction.reply({ content: `✅ Command channel set to ${channel}.`, flags: MessageFlags.Ephemeral });
   },
 };
+
+export default setcmdchannel;

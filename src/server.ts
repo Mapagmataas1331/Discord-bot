@@ -1,14 +1,18 @@
-import express, { type Express, type Request, type Response } from "express";
+import express, { type Request, type Response } from "express";
 
-const app: Express = express();
-const PORT = process.env.PORT || 3000;
+/** Tiny HTTP endpoint so hosts like Render can health-check / keep the process alive. */
+export function startKeepAlive(port: string): void {
+  const app = express();
 
-app.get("/", (req: Request, res: Response) => {
-  res.send("✅ Discord bot is alive!");
-});
+  app.get("/", (_req: Request, res: Response) => {
+    res.send("✅ Discord bot is alive!");
+  });
 
-app.listen(PORT, () => {
-  console.log(`🌐 Web server running on port ${PORT}`);
-});
+  app.get("/health", (_req: Request, res: Response) => {
+    res.json({ status: "ok", uptime: Math.round(process.uptime()) });
+  });
 
-export default app;
+  app.listen(Number(port), () => {
+    console.log(`🌐 Keep-alive server listening on port ${port}`);
+  });
+}

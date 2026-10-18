@@ -1,31 +1,32 @@
 import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction,
+  ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ActionRowBuilder,
-  PermissionFlagsBits,
   EmbedBuilder,
+  InteractionContextType,
+  MessageFlags,
+  SlashCommandBuilder,
 } from "discord.js";
-import type { BotClient } from "../index";
+import { checkAssignableRole } from "../lib/roles.js";
+import type { Command } from "../types.js";
 
-export default {
+const getrole: Command = {
+  category: "admin",
+  adminOnly: true,
   data: new SlashCommandBuilder()
     .setName("getrole")
-    .setDescription("Create a message that gives a role when the button is pressed.")
+    .setDescription("Post a message with a button that toggles a role (e.g. accept the rules).")
     .addRoleOption((opt) =>
-      opt.setName("role").setDescription("Role to assign").setRequired(true)
+      opt.setName("role").setDescription("Role to give when the button is pressed").setRequired(true),
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setContexts(InteractionContextType.Guild),
 
-  async execute(interaction: ChatInputCommandInteraction, client: BotClient) {
-    const role = interaction.options.getRole("role");
-    if (!role) {
-      await interaction.reply({
-        content: "❌ Role not found.",
-        flags: "Ephemeral",
-      });
+  async execute(interaction) {
+    const role = interaction.options.getRole("role", true);
 
+    const problem = checkAssignableRole(role);
+    if (problem) {
+      await interaction.reply({ content: `❌ ${problem}`, flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -45,9 +46,8 @@ export default {
       .setColor(0x3ba55d)
       .setFooter({ text: `Role: ${role.name}` });
 
-    await interaction.reply({
-      embeds: [embed],
-      components: [row]
-    });
+    await interaction.reply({ embeds: [embed], components: [row] });
   },
 };
+
+export default getrole;
